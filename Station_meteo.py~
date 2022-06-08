@@ -24,128 +24,90 @@ clock_hp = RTC_HP(addr=0x51)
 # Lecteur SD on pin15
 bme280 = BME280()
 
+def pulseIn(pin, pulseState, maxDuration = 2000000):
+  t_init = utime.ticks_us()
+  while (pin.read_digital() is not pulseState):
+    if(utime.ticks_us() - t_init > maxDuration):
+      return 0
+  start = utime.ticks_us()
+  while (pin.read_digital() == pulseState):
+    if(utime.ticks_us() - t_init > maxDuration):
+      return 0
+  end =  utime.ticks_us()
+  return end - start
 
-def pulseIn(pin, pulseState, maxDuration=2000000):
-    t_init = utime.ticks_us()
-    while pin.read_digital() is not pulseState:
-        if utime.ticks_us() - t_init > maxDuration:
-            return 0
-    start = utime.ticks_us()
-    while pin.read_digital() == pulseState:
-        if utime.ticks_us() - t_init > maxDuration:
-            return 0
-    end = utime.ticks_us()
-    return end - start
-
-
-def anemometer_getWindSpeed(pin, unit="m/s", pulse_per_revolution=1):
-    SPEED_OF_ONE_PULSE = 0.66666667 / pulse_per_revolution  # m/s
-    pulse_s = pulseIn(pin, 1, maxDuration=1000000)  # us
-    if pulse_s > 0:
-        imp_per_sec = pulse_per_revolution / (pulse_s / 1e6)  # impulsions/s
-        speed = SPEED_OF_ONE_PULSE * imp_per_sec  # m/s
-        if unit is "km/h":
-            return speed * 3600 / 1e3
-        elif unit is "inch/s":
-            return speed / 2.54
-        elif unit is "knot":
-            return speed / 0.514444444
-        else:
-            return speed
+def anemometer_getWindSpeed(pin, unit = 'm/s', pulse_per_revolution = 1):
+  SPEED_OF_ONE_PULSE = 0.66666667/pulse_per_revolution # m/s
+  pulse_s = pulseIn(pin, 1, maxDuration = 1000000) # us
+  if pulse_s > 0:
+    imp_per_sec = pulse_per_revolution/(pulse_s/1e6) # impulsions/s
+    speed = SPEED_OF_ONE_PULSE*imp_per_sec #m/s
+    if unit is 'km/h':
+      return speed*3600/1e3
+    elif unit is 'inch/s':
+      return speed/2.54
+    elif unit is 'knot':
+      return speed/0.514444444
     else:
-        return 0
-
+      return speed
+  else: return 0
 
 def weathercock_getDirection(pin):
-    windDir = pin.read_analog()
-    if windDir < 906 and windDir > 886:
-        s = "N"
-    elif windDir < 712 and windDir > 692:
-        s = "NE"
-    elif windDir < 415 and windDir > 395:
-        s = "E"
-    elif windDir < 498 and windDir > 478:
-        s = "SE"
-    elif windDir < 584 and windDir > 564:
-        s = "S"
-    elif windDir < 819 and windDir > 799:
-        s = "SW"
-    elif windDir < 988 and windDir > 968:
-        s = "W"
-    elif windDir < 959 and windDir > 939:
-        s = "NW"
-    else:
-        s = "???"
-    return s
-
+  windDir = pin.read_analog()
+  if windDir < 906 and windDir > 886:
+    s = "N"
+  elif windDir < 712 and windDir > 692:
+    s = "NE"
+  elif windDir < 415 and windDir > 395:
+    s = "E"
+  elif windDir < 498 and windDir > 478:
+    s = "SE"
+  elif windDir < 584 and windDir > 564:
+    s = "S"
+  elif windDir < 819 and windDir > 799:
+    s = "SW"
+  elif windDir < 988 and windDir > 968:
+    s = "W"
+  elif windDir < 959 and windDir > 939:
+    s = "NW"
+  else:
+    s = "???"
+  return s
 
 clock_hp.reset()
 pin8.set_pull(pin8.PULL_UP)
 
-
 def printConsole(text):
-    uart.init(baudrate=115200, bits=8, parity=None, stop=1)
-    print(text)
-
+  uart.init(baudrate=115200, bits=8, parity=None, stop=1)
+  print(text)
 
 def saveData(data):
-    uart.init(baudrate=57600, bits=8, parity=None, tx=pin15, rx=pin14)
-    uart.write(data + "\n")
-
+  uart.init(baudrate=57600, bits=8, parity=None, tx=pin15, rx=pin14)
+  uart.write(data + '\n')
 
 printConsole("Initialisation du module RTC au 06/08/2022 à 12h50'10")
 clock_hp.fillByYMD(2022, 6, 8)
-clock_hp.fillDayOfWeek("WED")
+clock_hp.fillDayOfWeek('WED')
 clock_hp.fillByHMS(13, 10, 10)
-printConsole("Attente de 2 secondes ...")
+printConsole('Attente de 2 secondes ...')
 utime.sleep(2)
-printConsole("Lecture du module RTC:")
+printConsole('Lecture du module RTC:')
 printConsole(clock_hp.readTime())
 printConsole("Ecriture de l'enttête dans la carte SD ")
-saveData(f"\n Enregistrement de données le {clock_hp.readTime()} \n")
-
-HEADER = "t;Vitesse du vent;Direction du vent;Température;Humidité;Altitude;Pression"
+saveData(''.join([str(x) for x in ["\n", 'Enregistrement de données le ', clock_hp.readTime(), "\n"]]))
+HEADER = ''.join([str(x2) for x2 in ['t', ';', 'Vitesse du vent', ';', 'Direction du vent', ';', 'Température', ';', 'Humidité', ';', 'Altitude', ';', 'Pression']])
 printConsole(HEADER)
 saveData(HEADER)
-HEADER_UNIT = "s;m/s;Dir;°C;%;m;hPa\n"
+HEADER_UNIT = ''.join([str(x3) for x3 in ['s', ';', 'm/s', ';', 'Dir', ';', '°C', ';', '%', ';', 'm', ';', 'hPa', "\n"]])
 printConsole(str(HEADER_UNIT) + str("\n"))
 saveData(HEADER_UNIT)
-printConsole("Attente de 2 secondes ...")
+printConsole('Attente de 2 secondes ...')
 utime.sleep(2)
 
 while True:
-    data = "".join(
-        [
-            str(x5)
-            for x5 in [
-                "".join(
-                    [
-                        str(x4)
-                        for x4 in [
-                            clock_hp.readTime()[4],
-                            ":",
-                            clock_hp.readTime()[5],
-                            ":",
-                            clock_hp.readTime()[6],
-                        ]
-                    ]
-                ),
-                ";",
-                anemometer_getWindSpeed(pin8, unit="m/s"),
-                ";",
-                weathercock_getDirection(pin1),
-                ";",
-                bme280.temperature(),
-                ";",
-                bme280.humidity(),
-                ";",
-                bme280.altitude(),
-                ";",
-                bme280.pressure(),
-            ]
-        ]
-    )
-    printConsole("Nouvel enregistrement:")
-    printConsole(data)
-    saveData(data)
-    utime.sleep(1)
+  data = ''.join([str(x5) for x5 in [''.join([str(x4) for x4 in [clock_hp.readTime()[4], ':', clock_hp.readTime()[5], ':', clock_hp.readTime()[6]]]), ';', anemometer_getWindSpeed(pin8, unit='m/s'), ';', weathercock_getDirection(pin1), ';', bme280.temperature(), ';', bme280.humidity(), ';', bme280.altitude(), ';', bme280.pressure()]])
+  printConsole('Nouvel enregistrement:')
+  printConsole(data)
+  saveData(data)
+  utime.sleep(1)
+
